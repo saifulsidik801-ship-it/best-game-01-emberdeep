@@ -173,8 +173,39 @@
       { robe: 0x2a7ad4, skin: 0xc89060, path: [[-4, 14], [4, 16], [2, 24], [-6, 20]] },
       { robe: 0xd43aa0, skin: 0xe8b88a, path: [[-16, 40], [-8, 44], [-2, 40], [-12, 36]] },
       { robe: 0x5a6a7a, skin: 0xd8a070, path: [[8, 40], [14, 44], [16, 36], [10, 32]] },
+      { robe: 0xe85a3a, skin: 0xe8b88a, path: [[-6, 30], [6, 30], [6, 38], [-6, 38]] },
+      { robe: 0x8a5a9a, skin: 0xd8a070, path: [[-16, 22], [-10, 22], [-10, 26], [-16, 26]] },
+      { robe: 0x2a9a7a, skin: 0xc89060, path: [[10, 22], [16, 22], [16, 26], [10, 26]] },
+      { robe: 0xc8a02a, skin: 0xe8b88a, path: [[-8, 42], [8, 42], [8, 44], [-8, 44]] },
+      { robe: 0x9a3a5a, skin: 0xd8a070, path: [[-18, 30], [-16, 34], [-18, 38], [-16, 42]] },
+      { robe: 0x4a7a9a, skin: 0xe8b88a, path: [[16, 34], [18, 38], [16, 42], [18, 34]] },
     ];
     npcDefs.forEach(function (d) { var n = makeNpc(d.robe, d.skin, d.path[0][0], d.path[0][1]); n.path = d.path; n.wp = 1; npcs.push(n); });
+    // merchants tending the 4 market stalls (shuffle behind the counter)
+    var merchantDefs = [
+      { robe: 0xc0392b, skin: 0xe8b88a, x: -12, z: 16.7 },
+      { robe: 0x2471a3, skin: 0xd8a070, x: 12, z: 16.7 },
+      { robe: 0x1e8449, skin: 0xc89060, x: -13, z: 37.3 },
+      { robe: 0xb7950b, skin: 0xe8b88a, x: 13, z: 39.3 },
+    ];
+    merchantDefs.forEach(function (d) {
+      var m = makeNpc(d.robe, d.skin, d.x, d.z);
+      m.path = [[d.x - 0.9, d.z], [d.x + 0.9, d.z]];
+      m.wp = 1;
+      npcs.push(m);
+    });
+    // guards flanking the north gate, facing out toward the forest
+    var guardDefs = [
+      { robe: 0x4a5a6a, skin: 0xd8a070, x: -4.5, z: 9.5 },
+      { robe: 0x4a5a6a, skin: 0xc89060, x: 4.5, z: 9.5 },
+    ];
+    guardDefs.forEach(function (d) {
+      var g = makeNpc(d.robe, d.skin, d.x, d.z);
+      g.path = [[d.x, d.z]];
+      g.wp = 0;
+      g.group.rotation.y = Math.PI;
+      npcs.push(g);
+    });
     // hay bales, barrels, crates for clutter
     for (var b = 0; b < 8; b++) {
       var barrel = new T.Mesh(new T.CylinderGeometry(0.5, 0.55, 1, 10), mat(0x6a4a26));
@@ -290,7 +321,7 @@
     var pollen = makePoints(70, 0xfff2b0, 0.09, { x1: -18, x2: 18, z1: -45, z2: 5 }, 0.5, 4);
     particleSystems.push({ kind: 'dust', sys: pollen });
     // hopping critters (rabbits)
-    for (var cr = 0; cr < 5; cr++) {
+    for (var cr = 0; cr < 10; cr++) {
       var cg = new T.Group();
       var cbody = new T.Mesh(new T.SphereGeometry(0.32, 8, 6), mat(0xf0e8d8));
       cbody.scale.set(1, 0.8, 1.3); cbody.position.y = 0.3; cg.add(cbody);
