@@ -455,13 +455,13 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     renderer.toneMapping = T.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
-    // lights: warm sun + cool ambient
-    var hemi = new T.HemisphereLight(0x8a9fd8, 0x3a2a1a, 0.85);
+    renderer.toneMappingExposure = 1.15;
+    // lights: warm sun + cool ambient (brightened so dungeon/vault read clearly in screenshots)
+    var hemi = new T.HemisphereLight(0x8a9fd8, 0x3a2a1a, 1.25);
     scene.add(hemi);
-    var sun = new T.DirectionalLight(0xffe0b0, 1.5);
+    var sun = new T.DirectionalLight(0xffe0b0, 1.8);
     sun.position.set(30, 50, 40); scene.add(sun);
-    var deep = new T.AmbientLight(0x402a18, 0.5); scene.add(deep);
+    var deep = new T.AmbientLight(0x6a4a28, 0.85); scene.add(deep);
     buildHub(); buildForest(); buildDungeon();
     ED.scene = scene; ED.camera = camera; ED.renderer = renderer;
     ED.walls = walls; ED.gates = gates; ED.chestList = chestList;
