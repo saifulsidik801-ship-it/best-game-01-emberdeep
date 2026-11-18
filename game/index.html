@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emberdeep — 3D Action Dungeon Crawler</title>
+<style>
+  :root { --gold:#f5b942; --ember:#ff6a2a; --panel:rgba(12,10,18,.82); --line:#5a4632; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#0b0910; font-family: Georgia, 'Times New Roman', serif; color:#f3e8d2; }
+  #game { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:crosshair; }
+  #status { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .hidden { display:none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:5; }
+  #hud .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+  #vitals { position:absolute; top:12px; left:12px; width:300px; padding:10px 12px; }
+  #vitals .row { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  #vitals .lbl { width:34px; font-size:12px; letter-spacing:1px; color:#d8c49a; }
+  .bar { flex:1; height:14px; background:#241a12; border:1px solid #6b5233; border-radius:7px; overflow:hidden; }
+  .bar > i { display:block; height:100%; transition:width .15s; }
+  #hpfill { background:linear-gradient(90deg,#c62f2f,#ff5a3c); }
+  #enfill { background:linear-gradient(90deg,#2a6fd6,#5ab8ff); }
+  #xpfill { background:linear-gradient(90deg,#8a5cff,#c98aff); }
+  #vitals .num { width:74px; text-align:right; font-size:12px; color:#ffe9bd; }
+  #lvlBadge { font-size:13px; color:var(--gold); }
+  #objective { position:absolute; top:12px; left:50%; transform:translateX(-50%); text-align:center; padding:8px 18px; max-width:520px; }
+  #zoneName { font-size:15px; letter-spacing:3px; color:var(--gold); text-transform:uppercase; }
+  #objText { font-size:13px; color:#efe0bd; margin-top:2px; }
+  #zonePips { margin-top:6px; display:flex; gap:6px; justify-content:center; }
+  #zonePips span { width:26px; height:6px; background:#3a2c1c; border-radius:3px; }
+  #zonePips span.done { background:var(--gold); }
+  #zonePips span.now { background:var(--ember); box-shadow:0 0 8px var(--ember); }
+  #statsBox { position:absolute; top:12px; right:12px; padding:10px 14px; text-align:right; font-size:13px; line-height:1.55; }
+  #statsBox b { color:var(--gold); }
+  #bossBar { position:absolute; top:118px; left:50%; transform:translateX(-50%); width:520px; text-align:center; }
+  #bossName { font-size:14px; letter-spacing:2px; color:#ffb199; text-shadow:0 0 8px #a00; }
+  #bossBar .bar { height:12px; margin-top:4px; }
+  #bossFill { background:linear-gradient(90deg,#7a0d0d,#ff2d2d,#ffb03a); }
+  #relics { position:absolute; left:12px; bottom:12px; display:flex; gap:6px; }
+  #relics .relic { width:40px; height:40px; border:1px solid var(--line); border-radius:8px; background:var(--panel);
+    display:flex; align-items:center; justify-content:center; font-size:20px; cursor:default; }
+  #relics .relic:hover { border-color:var(--gold); }
+  #skills { position:absolute; right:12px; bottom:12px; display:flex; gap:8px; }
+  .skill { width:56px; height:56px; border:1px solid var(--line); border-radius:10px; background:var(--panel);
+    text-align:center; padding-top:6px; font-size:11px; color:#d8c49a; position:relative; }
+  .skill .ic { font-size:20px; display:block; }
+  .skill .key { position:absolute; top:2px; right:5px; font-size:10px; color:var(--gold); }
+  .skill .cd { position:absolute; inset:0; background:rgba(0,0,0,.62); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; }
+  #combo { position:absolute; right:16px; top:38%; text-align:right; font-size:26px; color:#ffd76a; text-shadow:0 0 12px #f80; }
+  #combo small { display:block; font-size:12px; color:#f3e8d2; letter-spacing:2px; }
+  #interact { position:absolute; left:50%; bottom:22%; transform:translateX(-50%); padding:8px 16px; font-size:15px; }
+  #toasts { position:absolute; left:50%; bottom:120px; transform:translateX(-50%); text-align:center; }
+  #toasts div { margin:3px; padding:6px 14px; background:var(--panel); border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  #toasts div.gold { color:var(--gold); border-color:var(--gold); }
+  #dmgFlash { position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 55%, rgba(255,0,0,.45)); opacity:0; transition:opacity .12s; z-index:6; }
+  #lowHp { position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 60%, rgba(200,0,0,.5)); opacity:0; z-index:6; }
+
+  /* ---------- Overlays ---------- */
+  .overlay { position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(30,16,8,.72), rgba(5,3,8,.92)); }
+  .card { width:min(680px, 92vw); max-height:92vh; overflow:auto; background:linear-gradient(180deg,#1d140d,#120d16); border:2px solid #7a5a28; border-radius:16px; padding:28px 34px; text-align:center; box-shadow:0 0 60px rgba(255,110,30,.25); }
+  .card h1 { margin:0; font-size:52px; letter-spacing:6px; color:var(--gold); text-shadow:0 0 24px rgba(255,140,40,.7); }
+  .card h2 { margin:0 0 6px; font-size:30px; letter-spacing:3px; color:var(--gold); }
+  .card h3 { color:#ffd76a; margin:14px 0 6px; letter-spacing:2px; font-size:16px; }
+  .card p { color:#e8dcc0; line-height:1.5; font-size:14px; }
+  .sub { color:#c9a86a; letter-spacing:4px; font-size:13px; text-transform:uppercase; }
+  .btn { pointer-events:auto; cursor:pointer; display:inline-block; margin:6px; padding:12px 26px; font-family:inherit; font-size:16px; letter-spacing:1px;
+    color:#1a0f05; background:linear-gradient(180deg,#ffd76a,#e8960f); border:1px solid #8a5f10; border-radius:10px; font-weight:bold; }
+  .btn:hover { filter:brightness(1.12); }
+  .btn.ghost { background:transparent; color:#f3e8d2; border:1px solid #7a5a28; }
+  .btn:disabled { opacity:.45; cursor:default; filter:none; }
+  .diffRow { display:flex; gap:10px; justify-content:center; margin:12px 0; }
+  .diffBtn { cursor:pointer; padding:10px 14px; border:2px solid #5a4632; border-radius:10px; background:#1a130c; color:#e8dcc0; font-family:inherit; width:150px; }
+  .diffBtn.sel { border-color:var(--gold); background:#33230f; box-shadow:0 0 14px rgba(245,185,66,.4); }
+  .diffBtn b { display:block; font-size:16px; color:var(--gold); margin-bottom:4px; }
+  .diffBtn span { font-size:12px; color:#c9b48a; }
+  .controls { text-align:left; display:inline-block; font-size:13px; line-height:1.8; color:#d8c49a; }
+  .controls b { color:#ffe9bd; display:inline-block; width:120px; }
+  .cards3 { display:flex; gap:12px; justify-content:center; margin-top:10px; }
+  .upCard { cursor:pointer; width:180px; padding:16px 12px; border:2px solid #5a4632; border-radius:12px; background:#20160e; }
+  .upCard:hover { border-color:var(--gold); transform:translateY(-3px); }
+  .upCard .ic { font-size:30px; }
+  .upCard b { display:block; margin:8px 0 4px; color:#ffd76a; font-size:15px; }
+  .upCard span { font-size:12px; color:#d8c49a; line-height:1.4; display:block; }
+  .shopGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:left; margin-top:10px; }
+  .shopItem { border:1px solid #5a4632; border-radius:10px; padding:10px 12px; background:#1a130c; }
+  .shopItem b { color:#ffd76a; }
+  .shopItem p { margin:4px 0 8px; font-size:12px; color:#d8c49a; }
+  .shopItem .price { color:var(--gold); font-weight:bold; }
+  .shopItem .lvl { color:#9fb8ff; font-size:12px; }
+  table.almanac { width:100%; border-collapse:collapse; font-size:13px; text-align:left; margin-top:8px; }
+  table.almanac td, table.almanac th { border-bottom:1px solid #3a2c1c; padding:6px 8px; }
+  table.almanac th { color:var(--gold); letter-spacing:1px; }
+  #winStats, #deadStats { text-align:left; display:inline-block; font-size:14px; line-height:1.9; }
+  #winStats b, #deadStats b { color:var(--gold); }
+  .feat { text-align:left; font-size:13px; padding:5px 0; border-bottom:1px solid #2a2015; }
+  .feat.done { color:#ffd76a; } .feat.locked { color:#7a6a50; }
+  #fpsTag { position:fixed; left:6px; bottom:4px; z-index:7; font-size:10px; color:#8a7a5a; opacity:.7; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Emberdeep: a 3D action dungeon crawler. WASD to move, click to attack, Space to dodge, Q for Ember Nova."></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+<div id="dmgFlash"></div><div id="lowHp"></div>
+
+<div id="hud" class="hidden">
+  <div id="vitals" class="panel">
+    <div class="row"><span class="lbl">HP</span><div class="bar"><i id="hpfill"></i></div><span class="num" id="hpnum"></span></div>
+    <div class="row"><span class="lbl">EN</span><div class="bar"><i id="enfill"></i></div><span class="num" id="ennum"></span></div>
+    <div class="row"><span class="lbl">XP</span><div class="bar"><i id="xpfill"></i></div><span class="num" id="xpnum"></span></div>
+    <div class="row"><span id="lvlBadge">Lv 1 &nbsp; Ember Knight</span></div>
+  </div>
+  <div id="objective" class="panel"><div id="zoneName">Emberdeep Town</div><div id="objText"></div><div id="zonePips"></div></div>
+  <div id="statsBox" class="panel">SCORE <b id="scoreNum">0</b><br>GOLD <b id="goldNum">0</b> &#9679;<br>TIME <b id="timeNum">0:00</b><br><span id="diffTag">FLAME</span> &middot; KILLS <b id="killNum">0</b></div>
+  <div id="bossBar" class="hidden"><div id="bossName"></div><div class="bar"><i id="bossFill"></i></div></div>
+  <div id="relics"></div>
+  <div id="skills">
+    <div class="skill"><span class="key">Q</span><span class="ic">&#128293;</span>Ember Nova<div class="cd hidden" id="skillCd"></div></div>
+    <div class="skill"><span class="key">SPC</span><span class="ic">&#128168;</span>Dodge Roll<div class="cd hidden" id="dodgeCd"></div></div>
+  </div>
+  <div id="combo" class="hidden"><span id="comboNum">x2</span><small>COMBO</small></div>
+  <div id="interact" class="panel hidden"></div>
+  <div id="toasts"></div>
+</div>
+
+<div id="titleScreen" class="overlay">
+  <div class="card">
+    <h1>EMBERDEEP</h1>
+    <div class="sub">A 3D Action Dungeon Crawler</div>
+    <p>The ember veins beneath Emberdeep Town have gone wild. Forest wisps turn feral, stone wakes
+    in the deep halls, and something vast stirs below. Take up the ember blade, clear the Whisperwood,
+    descend the dungeon, and slay the <b>Magma Colossus</b>.</p>
+    <h3>CHOOSE YOUR TRIAL</h3>
+    <div class="diffRow" id="diffRow">
+      <button class="diffBtn" data-diff="ember"><b>&#128293; EMBER</b><span>Gentle. Foes are weaker, you are sturdier.</span></button>
+      <button class="diffBtn sel" data-diff="flame"><b>&#128293;&#128293; FLAME</b><span>The true delve. Balanced and fair.</span></button>
+      <button class="diffBtn" data-diff="inferno"><b>&#128293;&#128293;&#128293; INFERNO</b><span>Brutal foes, +50% gold &amp; XP.</span></button>
+    </div>
+    <button class="btn" id="startBtn">BEGIN THE DELVE</button>
+    <button class="btn ghost" id="howBtn">HOW TO PLAY</button>
+    <div id="howPanel" class="hidden" style="margin-top:10px">
+      <div class="controls">
+        <div><b>W A S D</b> Move &nbsp; <b>Mouse drag</b> Orbit camera</div>
+        <div><b>Left click / J</b> Sword combo (3 hits)</div>
+        <div><b>Q</b> Ember Nova — fire burst, costs 30 energy</div>
+        <div><b>Space</b> Dodge roll (brief invulnerability)</div>
+        <div><b>E</b> Talk / enter gate / open chest &nbsp; <b>I</b> Almanac</div>
+        <div><b>P / Esc</b> Pause &nbsp; <b>M</b> Mute &nbsp; <b>1 / 2 / 3</b> Pick a level-up boon</div>
+      </div>
+      <p>Clear each zone to open the next gate. Chests and bosses drop <b>relics</b> — 14 to find.
+      Level up to choose boons, spend gold at the <b>Ember Smithy</b> in town. Slay the Magma Colossus to win,
+      then keep going in <b>Endless</b> mode.</p>
+    </div>
+    <p style="font-size:12px;color:#8a7a5a">Best played with keyboard + mouse &middot; sound on &middot; an original game, no borrowed world</p>
+  </div>
+</div>
+
+<div id="pauseScreen" class="overlay hidden">
+  <div class="card"><h2>PAUSED</h2><p id="pauseSub">The deep waits for no one. Except now.</p>
+    <button class="btn" id="resumeBtn">RESUME</button>
+    <button class="btn ghost" id="almanacBtn">ALMANAC &amp; FEATS</button>
+    <button class="btn ghost" id="restartBtn">RESTART DELVE</button>
+    <button class="btn ghost" id="quitBtn">QUIT TO TITLE</button>
+  </div>
+</div>
+
+<div id="levelScreen" class="overlay hidden">
+  <div class="card"><h2>LEVEL UP!</h2><p>Choose a boon — press 1, 2 or 3, or click.</p><div class="cards3" id="levelCards"></div></div>
+</div>
+
+<div id="shopScreen" class="overlay hidden">
+  <div class="card" style="width:min(760px,94vw)"><h2>EMBER SMITHY</h2>
+    <p>Smith <b>Bram</b> hammers ember-steel while the town bustles. Your gold: <b id="shopGold">0</b></p>
+    <div class="shopGrid" id="shopGrid"></div>
+    <h3>RELIC SHELF — rare finds, 150 gold each</h3>
+    <div class="shopGrid" id="relicShelf"></div>
+    <button class="btn" id="closeShopBtn">LEAVE THE SMITHY</button>
+  </div>
+</div>
+
+<div id="almanacScreen" class="overlay hidden">
+  <div class="card" style="width:min(760px,94vw)"><h2>ALMANAC OF THE DEEP</h2>
+    <h3>BESTIARY — foes you have met</h3><div id="bestiary"></div>
+    <h3>RELICS — 14 to find</h3><div id="relicList"></div>
+    <h3>FEATS</h3><div id="featList"></div>
+    <button class="btn" id="closeAlmanacBtn">CLOSE</button>
+  </div>
+</div>
+
+<div id="winScreen" class="overlay hidden">
+  <div class="card"><h2>&#127942; THE COLOSSUS FALLS!</h2>
+    <p>Emberdeep breathes again. The deep is yours, Ember Knight.</p>
+    <div id="winStats"></div><br>
+    <button class="btn" id="endlessBtn">ENDLESS MODE — KEEP FIGHTING</button>
+    <button class="btn ghost" id="againBtn">DELVE AGAIN</button>
+    <button class="btn ghost" id="winTitleBtn">TITLE SCREEN</button>
+  </div>
+</div>
+
+<div id="deadScreen" class="overlay hidden">
+  <div class="card"><h2>THE EMBER FADES…</h2><p>You fall, but the deep remembers the brave.</p>
+    <div id="deadStats"></div><br>
+    <button class="btn" id="retryBtn">TRY AGAIN</button>
+    <button class="btn ghost" id="deadTitleBtn">TITLE SCREEN</button>
+  </div>
+</div>
+
+<div id="fpsTag"></div>
+
+<script src="./vendor/three.min.js"></script>
+<script src="./src/util.js"></script>
+<script src="./src/data.js"></script>
+<script src="./src/audio.js"></script>
+<script src="./src/world.js"></script>
+<script src="./src/entities.js"></script>
+<script src="./src/combat.js"></script>
+<script src="./src/ui.js"></script>
+<script src="./src/shots.js"></script>
+<script src="./src/main.js"></script>
+</body>
+</html>
